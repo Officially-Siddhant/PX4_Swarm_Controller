@@ -1,21 +1,31 @@
 #!/bin/bash
-# This is the ROS2 Humble Equivalent for Gazebo Harmonic. Note, ROS interacts with
-# Gazebo Harmonic via gz topics for most data.
+set -e
+# --------------------------------------------------
+# PX4 SITL Multi-Agent Launcher for Gazebo Harmonic
+# ROS 2 Humble Compatible, 2025. 
+# --------------------------------------------------
 
-# Here's the structure:
-# function cleanup()
-# function spawn_model()
-# terminal handling scripts
-# while loop for extracting command options
-# default world and agent parameter declaration...
-# looping through each vehicle spawn.
+# Structure:
+# 	function cleanup()
+# 	function spawn_model()
+# 	terminal handling scripts
+# 	while loop for extracting command options
+# 	default world and agent parameter declaration
+#	Launch Gazebo Harmonic
+# 	Vehicle Spawning
 
+#------------------------
+# Cleanup on exit
+#------------------------
 function cleanup()
 {
     pkill -x px4
     pkill -x gz
 }
 
+#------------------------
+# Cleanup on exit
+#------------------------
 function spawn_model()
 {
 	MODEL=$1 # Specified model
@@ -26,7 +36,7 @@ function spawn_model()
 	Y=${Y:=$((3*${N}))} # Y co-ordinate is 3 times the no. of agents
 	SUPPORTED_MODELS=("x500" "rc_cessna" "r1_rover")
 
-	if [[ " ${SUPPORTED_MODELS[*]}" != *"MODEL"* ]];
+	if [[ " ${SUPPORTED_MODELS[*]}" != *"${MODEL}"* ]];
 	then
 	    echo "ERROR: I am not able to work with the $MODEL model :/ !"
 	    echo "Refer to the /Tools/simulation/gz/models directory. Hoping to get there soon..."
@@ -41,9 +51,9 @@ function spawn_model()
 	echo "starting instance $N in $(pwd)"
 	$build_path/bin/px4 -i $N -d "$build_path/etc" >out.log 2>err.log &
 
-  # set -- is building a Python command line by adding arguments one-by-one. Hence the python3 ${@} command afterwards
-  # here we don't need jinja to create the cookie cutter template
-  # so we manually set the MAVLINK params for each model that is spawned
+	# 'set --' is building a Python command line by adding arguments one-by-one. Hence the python3 ${@} command afterwards
+	# here we don't need jinja to create the cookie cutter template
+	# so we manually set the MAVLINK params for each model that is spawned
 	# Manually set MAVLink ports and IDs for PX4
 	export MAVLINK_TCP_PORT=$((4560 + ${N}))
 	export MAVLINK_UDP_PORT=$((14560 + ${N}))
@@ -57,13 +67,13 @@ function spawn_model()
 	popd &>/dev/null
 }
 
-# Now we can focus on the main() function execution:
-# adding params to our targets. Each drone/rover is built in the target
-
+#------------------------
+# Default Parameters
+#------------------------
 # Setting the default states - no. of cookies, cookie tray to use, oven, cookie shape lol
 num_vehicles=${NUM_VEHICLES:=3}
 world=${WORLD:=empty}
-target=${TARGET:=px4_sitl_default} #the baking oven haha
+target=${TARGET:=px4_sitl} #the baking oven haha
 vehicle_model=${VEHICLE_MODEL:="x500"}
 
 
@@ -76,7 +86,11 @@ fi
 
 export PX4_SIM_MODEL=${vehicle_model} #cuz gz launches files like make px4_sitl gz_x500
 
-echo ${SCRIPT}
+
+#------------------------
+# Paths and Environment
+#------------------------
+echo "[INFO] SCRIPT parameter is: ${SCRIPT}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 src_path="$SCRIPT_DIR/../../.."
 
@@ -84,7 +98,8 @@ build_path=${src_path}/build/${target}
 mavlink_udp_port=14560
 mavlink_tcp_port=4560
 
-echo "killing running instances" #Killing processes of PX4 that were running before this
+# Kill previous px4 instances
+echo "[INFO] Killing any running PX4 instances..."
 pkill -x px4 || true
 sleep 1
 
@@ -101,13 +116,19 @@ else
 	ros_args=""
 fi
 
-# new changes made - Siddhant Baroth.
+
+#------------------------
+# Launch Gazebo Harmonic
+#------------------------
 echo "Starting Gazebo (Harmonic)"
 # Notice: using .sdf file now from the 'gz' folder
 gz sim ${src_path}/Tools/simulation/gz/${world}.sdf --verbose --gui $ros_args &
 
-n=0
 
+#-------------------------------
+#        Spawn Vehicles
+#-------------------------------
+n=0
 if [ -z "${SCRIPT}" ]; then
 	if [ $num_vehicles -gt 255 ]
 	then
