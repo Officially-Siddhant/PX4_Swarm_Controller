@@ -65,7 +65,7 @@ def generate_launch_description():
     # Launch simulation manager node
     ld.add_action(Node(
         package='px4_swarm_controller',
-        executable='simulation_gz_node.py',
+        executable='simulation_gz_node',
         name='gz_simulation_node',
         parameters=[{'script': script, 'initial_pose': initial_poses}]
     ))
